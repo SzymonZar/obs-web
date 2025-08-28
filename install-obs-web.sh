@@ -185,7 +185,22 @@ update_system() {
         tmux \
         xvfb \
         x11vnc \
-        fluxbox
+        fluxbox \
+        libgl1-mesa-dev \
+        libglu1-mesa-dev \
+        mesa-common-dev \
+        libglew-dev \
+        libglfw3-dev \
+        libgles2-mesa-dev \
+        libegl1-mesa-dev \
+        libdrm-dev \
+        libgbm-dev \
+        libwayland-egl1-mesa \
+        qtbase5-dev \
+        qtbase5-private-dev \
+        libqt5svg5-dev \
+        qttools5-dev \
+        qttools5-dev-tools
         
     log "System packages updated successfully"
 }
@@ -245,6 +260,8 @@ install_obs_studio() {
     # Configure build with hardware acceleration for RK3588
     cmake .. \
         -DCMAKE_INSTALL_PREFIX=/usr/local \
+        -DCMAKE_BUILD_TYPE=Release \
+        -DOBS_VERSION_OVERRIDE="$OBS_VERSION" \
         -DENABLE_WAYLAND=OFF \
         -DENABLE_PULSEAUDIO=ON \
         -DENABLE_JACK=ON \
@@ -256,8 +273,14 @@ install_obs_studio() {
         -DENABLE_LUAJIT=ON \
         -DBUILD_BROWSER=OFF \
         -DBUILD_VST=OFF \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DOBS_VERSION_OVERRIDE="$OBS_VERSION"
+        -DENABLE_WEBRTC=OFF \
+        -DENABLE_AJA=OFF \
+        -DENABLE_DECKLINK=OFF \
+        -DLINUX_PORTABLE=OFF \
+        -DUNIX_STRUCTURE=ON \
+        -DOpenGL_GL_PREFERENCE=GLVND \
+        -DCMAKE_CXX_FLAGS="-Wno-error=deprecated-declarations" \
+        -DCMAKE_C_FLAGS="-Wno-error=deprecated-declarations"
     
     # Build (use all available cores)
     make -j$(nproc)
