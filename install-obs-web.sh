@@ -76,46 +76,6 @@ check_hardware() {
     log "Hardware check completed"
 }
 
-# Clone application from GitHub
-clone_application() {
-    log "Cloning OBS Web Studio from GitHub..."
-    
-    # Remove existing directory if present
-    rm -rf "$OBS_WEB_DIR"
-    
-    # Clone repository
-    git clone "$GITHUB_REPO" "$OBS_WEB_DIR"
-    cd "$OBS_WEB_DIR"
-    
-    # Install dependencies
-    npm install
-    
-    # Build application
-    npm run build
-    
-    log "Application cloned and built successfully"
-}
-
-# Clone application from GitHub
-clone_application() {
-    log "Cloning OBS Web Studio from GitHub..."
-    
-    # Remove existing directory if present
-    rm -rf "$OBS_WEB_DIR"
-    
-    # Clone repository
-    git clone "$GITHUB_REPO" "$OBS_WEB_DIR"
-    cd "$OBS_WEB_DIR"
-    
-    # Install dependencies
-    npm install
-    
-    # Build application
-    npm run build
-    
-    log "Application cloned and built successfully"
-}
-
 # Update system packages
 update_system() {
     log "Updating system packages..."
@@ -175,7 +135,6 @@ update_system() {
         libxi6 \
         libxrender1 \
         libxtst6 \
-        libxss1 \
         libnss3 \
         nginx \
         supervisor \
@@ -200,7 +159,20 @@ update_system() {
         qtbase5-private-dev \
         libqt5svg5-dev \
         qttools5-dev \
-        qttools5-dev-tools
+        qttools5-dev-tools \
+        v4l-utils \
+        xrandr \
+        edid-decode \
+        read-edid \
+        hwinfo \
+        mesa-utils \
+        gstreamer1.0-tools \
+        gstreamer1.0-plugins-base \
+        gstreamer1.0-plugins-good \
+        gstreamer1.0-plugins-bad \
+        gstreamer1.0-plugins-ugly \
+        gstreamer1.0-libav \
+        ffmpeg
         
     log "System packages updated successfully"
 }
@@ -236,6 +208,26 @@ create_user() {
     else
         log "User $SERVICE_USER already exists"
     fi
+}
+
+# Clone application from GitHub
+clone_application() {
+    log "Cloning OBS Web Studio from GitHub..."
+    
+    # Remove existing directory if present
+    rm -rf "$OBS_WEB_DIR"
+    
+    # Clone repository
+    git clone "$GITHUB_REPO" "$OBS_WEB_DIR"
+    cd "$OBS_WEB_DIR"
+    
+    # Install dependencies
+    npm install
+    
+    # Build application
+    npm run build
+    
+    log "Application cloned and built successfully"
 }
 
 # Install OBS Studio from source
@@ -541,37 +533,6 @@ setup_directories() {
     chmod 755 "/home/$SERVICE_USER/recordings"
     
     log "Directories setup completed"
-}
-
-# Install additional tools
-install_tools() {
-    log "Installing additional tools..."
-    
-    # Install FFmpeg with hardware acceleration support
-    apt install -y ffmpeg
-    
-    # Install v4l-utils for USB capture devices
-    apt install -y v4l-utils
-    
-    # Install additional tools for HDMI output management
-    apt install -y \
-        xrandr \
-        edid-decode \
-        read-edid \
-        hwinfo \
-        drm-info \
-        mesa-utils
-    
-    # Install GStreamer for advanced streaming
-    apt install -y \
-        gstreamer1.0-tools \
-        gstreamer1.0-plugins-base \
-        gstreamer1.0-plugins-good \
-        gstreamer1.0-plugins-bad \
-        gstreamer1.0-plugins-ugly \
-        gstreamer1.0-libav
-    
-    log "Additional tools installed"
 }
 
 # Configure HDMI outputs for Orange Pi 5+
@@ -913,7 +874,6 @@ main() {
     setup_services
     configure_firewall
     setup_directories
-    install_tools
     optimize_system
     configure_hdmi_outputs
     configure_video_passthrough
