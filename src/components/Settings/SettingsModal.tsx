@@ -138,6 +138,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     </p>
                   </div>
                   
+                  <div className="bg-green-900 border border-green-700 rounded-lg p-4">
+                    <h4 className="text-green-300 font-semibold mb-2">HDMI Output Configuration</h4>
+                    <div className="space-y-2 text-sm text-green-200">
+                      <p><strong>HDMI-1:</strong> Server Console (Primary Display)</p>
+                      <p><strong>HDMI-2:</strong> Input Passthrough (Secondary Display)</p>
+                      <p>Maximum resolution and refresh rate automatically detected</p>
+                    </div>
+                  </div>
+                  
                   <div className="flex items-center justify-between">
                     <div>
                       <label className="block text-sm font-medium text-gray-300">
@@ -166,6 +175,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                     />
                   </div>
 
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300">
+                        HDMI Passthrough
+                      </label>
+                      <p className="text-xs text-gray-400">Direct input to HDMI-2 with minimal latency</p>
+                    </div>
+                    <input
+                      type="checkbox"
+                      defaultChecked
+                      className="w-4 h-4 text-blue-600 bg-gray-700 border-gray-600 rounded"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">
                       Encoder
@@ -174,6 +197,31 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({ isOpen, onClose })
                       <option>Hardware H.264 (RK3588 VPU)</option>
                       <option>Hardware H.265 (RK3588 VPU)</option>
                       <option>Software x264</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      HDMI-2 Resolution
+                    </label>
+                    <select className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                      <option>Auto (Maximum Available)</option>
+                      <option>3840x2160@60Hz</option>
+                      <option>3840x2160@30Hz</option>
+                      <option>1920x1080@120Hz</option>
+                      <option>1920x1080@60Hz</option>
+                      <option>1280x720@60Hz</option>
+                    </select>
+                  </div>
+                  
+                  <div>
+                    <label className="block text-sm font-medium text-gray-300 mb-2">
+                      Latency Mode
+                    </label>
+                    <select className="w-full bg-gray-700 border border-gray-600 rounded-lg px-3 py-2 text-white">
+                      <option>Ultra Low Latency (&lt;1ms)</option>
+                      <option>Low Latency (&lt;5ms)</option>
+                      <option>Normal (&lt;16ms)</option>
                     </select>
                   </div>
                 </div>

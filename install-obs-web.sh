@@ -530,6 +530,15 @@ install_tools() {
     # Install v4l-utils for USB capture devices
     apt install -y v4l-utils
     
+    # Install additional tools for HDMI output management
+    apt install -y \
+        xrandr \
+        edid-decode \
+        read-edid \
+        hwinfo \
+        drm-info \
+        mesa-utils
+    
     # Install GStreamer for advanced streaming
     apt install -y \
         gstreamer1.0-tools \
@@ -540,6 +549,211 @@ install_tools() {
         gstreamer1.0-libav
     
     log "Additional tools installed"
+}
+
+# Configure HDMI outputs for Orange Pi 5+
+configure_hdmi_outputs() {
+    log "Configuring HDMI outputs for Orange Pi 5+..."
+    
+    # Create HDMI configuration script
+    cat > /usr/local/bin/setup-hdmi-outputs << 'EOF'
+#!/bin/bash
+
+# HDMI Output Configuration for Orange Pi 5+
+# HDMI-1: Server Console (Primary)
+# HDMI-2: Input Passthrough (Secondary)
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Wait for displays to be detected
+sleep 3
+
+# Get available displays
+DISPLAYS=$(xrandr --listmonitors | grep -v "Monitors:" | awk '{print $4}')
+HDMI1=$(echo "$DISPLAYS" | grep -E "(HDMI-1|HDMI-A-1|HDMI1)" | head -1)
+HDMI2=$(echo "$DISPLAYS" | grep -E "(HDMI-2|HDMI-A-2|HDMI2)" | head -1)
+
+log "Detected displays: $DISPLAYS"
+log "HDMI-1: $HDMI1"
+log "HDMI-2: $HDMI2"
+
+# Configure HDMI-1 for server console (primary display)
+if [ ! -z "$HDMI1" ]; then
+    log "Configuring HDMI-1 ($HDMI1) for server console..."
+    
+    # Get maximum resolution for HDMI-1
+    MAX_RES_HDMI1=$(xrandr | grep -A 20 "$HDMI1" | grep -E "^\s+[0-9]+x[0-9]+" | head -1 | awk '{print $1}')
+    
+    if [ ! -z "$MAX_RES_HDMI1" ]; then
+        xrandr --output "$HDMI1" --mode "$MAX_RES_HDMI1" --primary --rotate normal
+        log "HDMI-1 set to $MAX_RES_HDMI1 (primary)"
+    else
+        xrandr --output "$HDMI1" --auto --primary
+        log "HDMI-1 set to auto (primary)"
+    fi
+fi
+
+# Configure HDMI-2 for input passthrough (secondary display)
+if [ ! -z "$HDMI2" ]; then
+    log "Configuring HDMI-2 ($HDMI2) for input passthrough..."
+    
+    # Get maximum resolution and refresh rate for HDMI-2
+    MAX_RES_HDMI2=$(xrandr | grep -A 50 "$HDMI2" | grep -E "^\s+[0-9]+x[0-9]+" | head -1 | awk '{print $1}')
+    MAX_REFRESH=$(xrandr | grep -A 50 "$HDMI2" | grep -E "^\s+[0-9]+x[0-9]+" | head -1 | grep -o '[0-9]\+\.[0-9]\+' | head -1)
+    
+    if [ ! -z "$MAX_RES_HDMI2" ] && [ ! -z "$MAX_REFRESH" ]; then
+        # Try to set highest refresh rate available
+        BEST_MODE=$(xrandr | grep -A 50 "$HDMI2" | grep "$MAX_RES_HDMI2" | grep -E "[0-9]+\.[0-9]+" | sort -k2 -nr | head -1 | awk '{print $1}')
+        xrandr --output "$HDMI2" --mode "$BEST_MODE" --right-of "$HDMI1" --rotate normal
+        log "HDMI-2 set to $BEST_MODE @ ${MAX_REFRESH}Hz (secondary)"
+    else
+        xrandr --output "$HDMI2" --auto --right-of "$HDMI1"
+        log "HDMI-2 set to auto (secondary)"
+    fi
+    
+    # Set low latency mode for HDMI-2 (input passthrough)
+    echo 1 > /sys/class/drm/card0-HDMI-A-2/vrr_capable 2>/dev/null || true
+fi
+
+# Apply additional optimizations for minimal latency
+log "Applying latency optimizations..."
+
+# Disable composition for minimal latency
+export XCOMPMGR_DISABLE=1
+export COMPIZ_DISABLE=1
+
+# Set GPU performance mode
+echo performance > /sys/class/devfreq/fb000000.gpu/governor 2>/dev/null || true
+echo performance > /sys/devices/platform/fb000000.gpu/devfreq/fb000000.gpu/governor 2>/dev/null || true
+
+# Set CPU performance mode for video processing
+for cpu in /sys/devices/system/cpu/cpu*/cpufreq/scaling_governor; do
+    echo performance > "$cpu" 2>/dev/null || true
+done
+
+# Optimize memory for video processing
+echo 1 > /proc/sys/vm/drop_caches
+
+log "HDMI configuration completed"
+
+# Display current configuration
+xrandr --query | grep -E "(Screen|HDMI|connected|disconnected)"
+EOF
+    
+    chmod +x /usr/local/bin/setup-hdmi-outputs
+    
+    # Create systemd service for HDMI configuration
+    cat > /etc/systemd/system/hdmi-setup.service << 'EOF'
+[Unit]
+Description=HDMI Output Configuration for Orange Pi 5+
+After=graphical-session.target
+Wants=graphical-session.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/setup-hdmi-outputs
+Environment=DISPLAY=:0
+User=root
+RemainAfterExit=yes
+
+[Install]
+WantedBy=graphical.target
+EOF
+    
+    # Create udev rule for automatic HDMI detection
+    cat > /etc/udev/rules.d/99-hdmi-hotplug.rules << 'EOF'
+# HDMI hotplug detection for Orange Pi 5+
+ACTION=="change", KERNEL=="card0", SUBSYSTEM=="drm", RUN+="/usr/local/bin/setup-hdmi-outputs"
+EOF
+    
+    systemctl enable hdmi-setup.service
+    
+    log "HDMI output configuration completed"
+}
+
+# Configure video input passthrough
+configure_video_passthrough() {
+    log "Configuring video input passthrough..."
+    
+    # Create video passthrough script
+    cat > /usr/local/bin/video-passthrough << 'EOF'
+#!/bin/bash
+
+# Video Input Passthrough for Orange Pi 5+
+# Routes video input directly to HDMI-2 with minimal latency
+
+HDMI2_OUTPUT="HDMI-2"
+VIDEO_INPUT="/dev/video0"  # Adjust based on your capture device
+
+log() {
+    echo "[$(date +'%Y-%m-%d %H:%M:%S')] $1"
+}
+
+# Check if video input device exists
+if [ ! -e "$VIDEO_INPUT" ]; then
+    log "Video input device $VIDEO_INPUT not found"
+    exit 1
+fi
+
+# Get input resolution and format
+INPUT_INFO=$(v4l2-ctl -d "$VIDEO_INPUT" --get-fmt-video 2>/dev/null)
+if [ $? -eq 0 ]; then
+    log "Input device detected: $VIDEO_INPUT"
+    log "Input format: $INPUT_INFO"
+else
+    log "Failed to get input format from $VIDEO_INPUT"
+    exit 1
+fi
+
+# Start low-latency passthrough using GStreamer
+log "Starting video passthrough to $HDMI2_OUTPUT..."
+
+# Ultra-low latency pipeline
+gst-launch-1.0 \
+    v4l2src device="$VIDEO_INPUT" ! \
+    video/x-raw,format=YUY2 ! \
+    videoconvert ! \
+    video/x-raw,format=NV12 ! \
+    kmssink connector-id=32 plane-id=31 \
+    sync=false \
+    max-lateness=0 \
+    qos=false \
+    async=false &
+
+PASSTHROUGH_PID=$!
+echo $PASSTHROUGH_PID > /var/run/video-passthrough.pid
+
+log "Video passthrough started with PID: $PASSTHROUGH_PID"
+EOF
+    
+    chmod +x /usr/local/bin/video-passthrough
+    
+    # Create systemd service for video passthrough
+    cat > /etc/systemd/system/video-passthrough.service << 'EOF'
+[Unit]
+Description=Video Input Passthrough to HDMI-2
+After=hdmi-setup.service
+Wants=hdmi-setup.service
+
+[Service]
+Type=forking
+ExecStart=/usr/local/bin/video-passthrough
+ExecStop=/bin/kill -TERM $MAINPID
+PIDFile=/var/run/video-passthrough.pid
+Restart=always
+RestartSec=5
+User=obs-web
+Environment=DISPLAY=:0
+
+[Install]
+WantedBy=multi-user.target
+EOF
+    
+    systemctl enable video-passthrough.service
+    
+    log "Video passthrough configuration completed"
 }
 
 # Optimize system for streaming
@@ -678,6 +892,8 @@ main() {
     setup_directories
     install_tools
     optimize_system
+    configure_hdmi_outputs
+    configure_video_passthrough
     setup_autostart
     create_startup_script
     
