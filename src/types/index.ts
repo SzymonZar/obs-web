@@ -61,3 +61,42 @@ export interface AudioTrack {
   enabled: boolean;
   sources: string[];
 }
+
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  enabled: boolean;
+  script: string;
+  permissions: string[];
+}
+
+export interface TTSSettings {
+  enabled: boolean;
+  voice: string;
+  rate: number;
+  pitch: number;
+  volume: number;
+}
+
+export interface DockPanel {
+  id: string;
+  name: string;
+  visible: boolean;
+  position: 'left' | 'right' | 'bottom' | 'floating';
+  size: { width: number; height: number };
+}
+
+export interface Theme {
+  id: string;
+  name: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    accent: string;
+  };
+}

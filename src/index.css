@@ -2,6 +2,43 @@
 @tailwind components;
 @tailwind utilities;
 
+/* OBS-like theme colors */
+:root {
+  --obs-bg-primary: #1a1a1a;
+  --obs-bg-secondary: #2d2d30;
+  --obs-bg-tertiary: #3e3e42;
+  --obs-accent: #0078d4;
+  --obs-accent-hover: #106ebe;
+  --obs-text-primary: #ffffff;
+  --obs-text-secondary: #cccccc;
+  --obs-border: #464647;
+}
+
+/* Apply OBS theme */
+.bg-gray-900 {
+  background-color: var(--obs-bg-primary) !important;
+}
+
+.bg-gray-800 {
+  background-color: var(--obs-bg-secondary) !important;
+}
+
+.bg-gray-700 {
+  background-color: var(--obs-bg-tertiary) !important;
+}
+
+.border-gray-700, .border-gray-600 {
+  border-color: var(--obs-border) !important;
+}
+
+.bg-blue-600 {
+  background-color: var(--obs-accent) !important;
+}
+
+.bg-blue-600:hover, .hover\:bg-blue-700:hover {
+  background-color: var(--obs-accent-hover) !important;
+}
+
 /* Vertical monitor responsiveness */
 @media (max-aspect-ratio: 1/1) {
   .vertical-layout {

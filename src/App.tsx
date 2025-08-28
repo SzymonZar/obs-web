@@ -1,14 +1,14 @@
 import React, { useState, useEffect } from 'react';
+import { NavigationBar } from './components/Navigation/NavigationBar';
 import { Header } from './components/Header/Header';
 import { ScenesPanel } from './components/Scenes/ScenesPanel';
 import { SourcesPanel } from './components/Sources/SourcesPanel';
 import { PreviewArea } from './components/Preview/PreviewArea';
 import { AudioMixer } from './components/Mixer/AudioMixer';
 import { RecordingsPanel } from './components/Files/RecordingsPanel';
-import { AudioTracksPanel } from './components/AudioTracks/AudioTracksPanel';
 import { SettingsModal } from './components/Settings/SettingsModal';
 import { useWebSocket } from './hooks/useWebSocket';
-import { Scene, Source, SourceType, StreamStatus, AudioDevice, Recording, AudioTrack } from './types';
+import { Scene, Source, SourceType, StreamStatus, AudioDevice, Recording, AudioTrack, DockPanel } from './types';
 
 function App() {
   // State management
@@ -26,6 +26,14 @@ function App() {
   const [previewMode, setPreviewMode] = useState<'program' | 'preview' | 'multiview' | 'studio'>('studio');
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [studioModeEnabled, setStudioModeEnabled] = useState(true);
+
+  const [dockPanels, setDockPanels] = useState<DockPanel[]>([
+    { id: 'scenes', name: 'Sceny', visible: true, position: 'left', size: { width: 320, height: 400 } },
+    { id: 'sources', name: 'Źródła', visible: true, position: 'right', size: { width: 320, height: 400 } },
+    { id: 'mixer', name: 'Mikser Audio', visible: true, position: 'bottom', size: { width: 800, height: 200 } },
+    { id: 'recordings', name: 'Nagrania', visible: true, position: 'bottom', size: { width: 400, height: 200 } }
+  ]);
 
   const [streamStatus, setStreamStatus] = useState<StreamStatus>({
     isRecording: false,
@@ -296,9 +304,10 @@ function App() {
     console.log('Toggle track:', trackId);
   };
 
-  const handleTrackSettings = (trackId: number) => {
-    // Open track settings
-    console.log('Track settings:', trackId);
+  const handleToggleDock = (dockId: string) => {
+    setDockPanels(prev => prev.map(dock =>
+      dock.id === dockId ? { ...dock, visible: !dock.visible } : dock
+    ));
   };
 
   // Studio mode transition
@@ -347,8 +356,23 @@ function App() {
     sendMessage({ type: 'StopStream' });
   };
 
+  const handleToggleStudioMode = () => {
+    setStudioModeEnabled(!studioModeEnabled);
+    if (!studioModeEnabled) {
+      setPreviewMode('studio');
+    } else {
+      setPreviewMode('program');
+    }
+  };
+
   return (
     <div className="h-screen bg-gray-900 flex flex-col overflow-hidden vertical-layout">
+      <NavigationBar
+        onToggleDock={handleToggleDock}
+        dockPanels={dockPanels}
+        onOpenSettings={() => setIsSettingsOpen(true)}
+      />
+      
       <Header
         streamStatus={streamStatus}
         onStartRecording={handleStartRecording}
@@ -361,63 +385,73 @@ function App() {
       />
 
       <div className="flex flex-1 min-h-0 portrait-stack">
-        <div className="vertical-sidebar">
-          <ScenesPanel
-          scenes={scenes}
-          activeSceneId={activeSceneId}
-          onSceneSelect={handleSceneSelect}
-          onScenePreview={() => {}}
-          onSceneAdd={handleSceneAdd}
-          onSceneDelete={handleSceneDelete}
-          onSceneDuplicate={handleSceneDuplicate}
-          onSceneRename={handleSceneRename}
-        />
-        </div>
+        {dockPanels.find(d => d.id === 'scenes')?.visible && (
+          <div className="vertical-sidebar">
+            <ScenesPanel
+              scenes={scenes}
+              activeSceneId={activeSceneId}
+              onSceneSelect={handleSceneSelect}
+              onScenePreview={() => {}}
+              onSceneAdd={handleSceneAdd}
+              onSceneDelete={handleSceneDelete}
+              onSceneDuplicate={handleSceneDuplicate}
+              onSceneRename={handleSceneRename}
+            />
+          </div>
+        )}
 
         <div className="vertical-preview">
           <PreviewArea
-          isRecording={streamStatus.isRecording}
-          isStreaming={streamStatus.isStreaming}
-          previewMode={previewMode}
-          onPreviewModeChange={setPreviewMode}
-          onResetTransform={() => {}}
-          onTransition={handleTransition}
-        />
+            isRecording={streamStatus.isRecording}
+            isStreaming={streamStatus.isStreaming}
+            previewMode={previewMode}
+            onPreviewModeChange={setPreviewMode}
+            onResetTransform={() => {}}
+            onTransition={handleTransition}
+            studioModeEnabled={studioModeEnabled}
+            onToggleStudioMode={handleToggleStudioMode}
+          />
         </div>
 
-        <div className="vertical-sidebar">
-          <SourcesPanel
-          sources={sources}
-          onSourceAdd={handleSourceAdd}
-          onSourceDelete={handleSourceDelete}
-          onSourceToggleVisibility={handleSourceToggleVisibility}
-          onSourceToggleMute={handleSourceToggleMute}
-          onSourceToggleLock={handleSourceToggleLock}
-          onSourceVolumeChange={handleSourceVolumeChange}
-          onSourceSettings={() => {}}
-          onSourceReorder={() => {}}
-        />
+        {dockPanels.find(d => d.id === 'sources')?.visible && (
+          <div className="vertical-sidebar">
+            <SourcesPanel
+              sources={sources}
+              onSourceAdd={handleSourceAdd}
+              onSourceDelete={handleSourceDelete}
+              onSourceToggleVisibility={handleSourceToggleVisibility}
+              onSourceToggleMute={handleSourceToggleMute}
+              onSourceToggleLock={handleSourceToggleLock}
+              onSourceVolumeChange={handleSourceVolumeChange}
+              onSourceSettings={() => {}}
+              onSourceReorder={() => {}}
+            />
+          </div>
+        )}
+      </div>
+
+      {dockPanels.find(d => d.id === 'mixer')?.visible && (
+        <div className="vertical-mixer">
+          <AudioMixer
+            devices={audioDevices}
+            audioTracks={audioTracks}
+            onDeviceVolumeChange={() => {}}
+            onDeviceToggleMute={() => {}}
+            onDeviceToggleMonitoring={handleDeviceToggleMonitoring}
+            onDeviceSettings={() => {}}
+            onTrackToggle={handleTrackToggle}
+          />
         </div>
-      </div>
+      )}
 
-      <div className="vertical-mixer">
-        <AudioMixer
-        devices={audioDevices}
-        audioTracks={audioTracks}
-        onDeviceVolumeChange={() => {}}
-        onDeviceToggleMute={() => {}}
-        onDeviceToggleMonitoring={handleDeviceToggleMonitoring}
-        onDeviceSettings={() => {}}
-        onTrackToggle={handleTrackToggle}
-      />
-      </div>
-
-      <RecordingsPanel
-        recordings={recordings}
-        onDownload={handleRecordingDownload}
-        onDelete={handleRecordingDelete}
-        onPlay={handleRecordingPlay}
-      />
+      {dockPanels.find(d => d.id === 'recordings')?.visible && (
+        <RecordingsPanel
+          recordings={recordings}
+          onDownload={handleRecordingDownload}
+          onDelete={handleRecordingDelete}
+          onPlay={handleRecordingPlay}
+        />
+      )}
 
 
       <SettingsModal
