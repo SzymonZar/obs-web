@@ -2,7 +2,7 @@
 
 # OBS Web Studio Installation Script for Orange Pi 5+ Ubuntu Server ARM64
 # Author: OBS Web Studio Team
-# Version: 1.0.0
+# Version: 2.0.0
 # Compatible with: Ubuntu Server 22.04+ ARM64
 
 set -e
@@ -20,6 +20,7 @@ SERVICE_USER="obs-web"
 NODE_VERSION="20"
 OBS_VERSION="30.0.2"
 NGINX_CONF="/etc/nginx/sites-available/obs-web"
+GITHUB_REPO="https://github.com/SzymonZar/obs-web.git"
 
 # Logging function
 log() {
@@ -73,6 +74,26 @@ check_hardware() {
     fi
     
     log "Hardware check completed"
+}
+
+# Clone application from GitHub
+clone_application() {
+    log "Cloning OBS Web Studio from GitHub..."
+    
+    # Remove existing directory if present
+    rm -rf "$OBS_WEB_DIR"
+    
+    # Clone repository
+    git clone "$GITHUB_REPO" "$OBS_WEB_DIR"
+    cd "$OBS_WEB_DIR"
+    
+    # Install dependencies
+    npm install
+    
+    # Build application
+    npm run build
+    
+    log "Application cloned and built successfully"
 }
 
 # Update system packages
@@ -141,7 +162,10 @@ update_system() {
         ufw \
         htop \
         screen \
-        tmux
+        tmux \
+        xvfb \
+        x11vnc \
+        fluxbox
         
     log "System packages updated successfully"
 }
@@ -255,129 +279,37 @@ install_obs_websocket() {
     rm -rf "$BUILD_DIR"
 }
 
-# Setup OBS Web Studio application
-setup_obs_web() {
-    log "Setting up OBS Web Studio application..."
+# Setup virtual display for headless operation
+setup_virtual_display() {
+    log "Setting up virtual display..."
     
-    # Create application directory
-    mkdir -p "$OBS_WEB_DIR"
-    cd "$OBS_WEB_DIR"
+    # Create Xvfb service
+    cat > /etc/systemd/system/xvfb.service << 'EOF'
+[Unit]
+Description=X Virtual Frame Buffer Service
+After=network.target
+
+[Service]
+ExecStart=/usr/bin/Xvfb :99 -screen 0 1920x1080x24
+Restart=always
+User=obs-web
+
+[Install]
+WantedBy=multi-user.target
+EOF
     
-    # Initialize Node.js project
-    cat > package.json << 'EOF'
-{
-  "name": "obs-web-studio",
-  "version": "1.0.0",
-  "description": "OBS Studio Web Alternative for Orange Pi 5+",
-  "main": "server.js",
-  "scripts": {
-    "start": "node server.js",
-    "dev": "vite",
-    "build": "vite build",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "express": "^4.18.2",
-    "ws": "^8.14.2",
-    "cors": "^2.8.5",
-    "multer": "^1.4.5-lts.1",
-    "node-obs": "^0.1.0",
-    "fluent-ffmpeg": "^2.1.2"
-  },
-  "devDependencies": {
-    "vite": "^5.0.0"
-  }
+    systemctl enable xvfb.service
+    log "Virtual display configured"
 }
-EOF
-    
-    # Create basic server
-    cat > server.js << 'EOF'
-const express = require('express');
-const WebSocket = require('ws');
-const cors = require('cors');
-const path = require('path');
-const fs = require('fs');
 
-const app = express();
-const PORT = process.env.PORT || 3000;
-const WS_PORT = process.env.WS_PORT || 4455;
-
-// Middleware
-app.use(cors());
-app.use(express.json());
-app.use(express.static('dist'));
-
-// WebSocket server for OBS communication
-const wss = new WebSocket.Server({ port: WS_PORT });
-
-wss.on('connection', (ws) => {
-    console.log('Client connected to WebSocket');
-    
-    ws.on('message', (message) => {
-        try {
-            const data = JSON.parse(message);
-            console.log('Received:', data);
-            
-            // Handle OBS commands here
-            // This would integrate with actual OBS WebSocket API
-            
-            ws.send(JSON.stringify({
-                type: 'response',
-                data: { status: 'ok' }
-            }));
-        } catch (error) {
-            console.error('WebSocket error:', error);
-        }
-    });
-    
-    ws.on('close', () => {
-        console.log('Client disconnected');
-    });
-});
-
-// API Routes
-app.get('/api/status', (req, res) => {
-    res.json({ status: 'running', version: '1.0.0' });
-});
-
-app.get('/api/recordings', (req, res) => {
-    const recordingsDir = '/home/obs-web/recordings';
-    if (!fs.existsSync(recordingsDir)) {
-        fs.mkdirSync(recordingsDir, { recursive: true });
-    }
-    
-    const files = fs.readdirSync(recordingsDir)
-        .filter(file => file.endsWith('.mp4'))
-        .map(file => {
-            const stats = fs.statSync(path.join(recordingsDir, file));
-            return {
-                name: file,
-                size: stats.size,
-                created: stats.birthtime
-            };
-        });
-    
-    res.json(files);
-});
-
-// Serve React app
-app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'dist', 'index.html'));
-});
-
-app.listen(PORT, '0.0.0.0', () => {
-    console.log(`OBS Web Studio server running on port ${PORT}`);
-    console.log(`WebSocket server running on port ${WS_PORT}`);
-});
-EOF
-    
-    # Install dependencies
-    npm install
+# Setup application from GitHub
+setup_obs_web_from_github() {
+    log "Setting up OBS Web Studio from GitHub repository..."
     
     # Set ownership
     chown -R "$SERVICE_USER:$SERVICE_USER" "$OBS_WEB_DIR"
     
-    log "OBS Web Studio application setup completed"
+    log "OBS Web Studio application setup completed from GitHub"
 }
 
 # Configure Nginx
@@ -465,18 +397,20 @@ setup_services() {
     cat > /etc/systemd/system/obs-web-studio.service << EOF
 [Unit]
 Description=OBS Web Studio
-After=network.target
+After=network.target xvfb.service
+Wants=xvfb.service
 
 [Service]
 Type=simple
 User=$SERVICE_USER
 WorkingDirectory=$OBS_WEB_DIR
-ExecStart=/usr/bin/node server.js
+ExecStart=/usr/bin/npm start
 Restart=always
 RestartSec=10
 Environment=NODE_ENV=production
 Environment=PORT=3000
 Environment=WS_PORT=4455
+Environment=DISPLAY=:99
 
 # Security settings
 NoNewPrivileges=yes
@@ -493,7 +427,8 @@ EOF
     cat > /etc/systemd/system/obs-studio.service << EOF
 [Unit]
 Description=OBS Studio Headless
-After=network.target
+After=network.target xvfb.service
+Wants=xvfb.service
 
 [Service]
 Type=simple
@@ -513,6 +448,7 @@ EOF
     
     # Reload systemd and enable services
     systemctl daemon-reload
+    systemctl enable xvfb.service
     systemctl enable obs-web-studio.service
     systemctl enable obs-studio.service
     
@@ -552,6 +488,8 @@ setup_directories() {
     mkdir -p "/home/$SERVICE_USER/config"
     mkdir -p "/home/$SERVICE_USER/plugins"
     mkdir -p "/home/$SERVICE_USER/logs"
+    mkdir -p "/home/$SERVICE_USER/profiles"
+    mkdir -p "/home/$SERVICE_USER/scene-collections"
     mkdir -p "/var/log/obs-web"
     
     # Set permissions
@@ -612,6 +550,32 @@ EOF
     log "System optimization completed"
 }
 
+# Setup autostart
+setup_autostart() {
+    log "Setting up autostart..."
+    
+    # Enable services to start on boot
+    systemctl enable xvfb.service
+    systemctl enable obs-studio.service
+    systemctl enable obs-web-studio.service
+    systemctl enable nginx.service
+    
+    # Create autostart script for desktop environments
+    mkdir -p /etc/xdg/autostart
+    cat > /etc/xdg/autostart/obs-web-studio.desktop << 'EOF'
+[Desktop Entry]
+Type=Application
+Name=OBS Web Studio
+Comment=Start OBS Web Studio on login
+Exec=/usr/local/bin/obs-web-start
+Hidden=false
+NoDisplay=false
+X-GNOME-Autostart-enabled=true
+EOF
+    
+    log "Autostart configured"
+}
+
 # Create startup script
 create_startup_script() {
     log "Creating startup script..."
@@ -622,43 +586,71 @@ create_startup_script() {
 # OBS Web Studio Startup Script
 echo "Starting OBS Web Studio..."
 
+# Start virtual display first
+systemctl start xvfb.service
+sleep 2
+
 # Start services
 systemctl start obs-studio.service
 sleep 5
 systemctl start obs-web-studio.service
+systemctl start nginx.service
 
 # Check status
+systemctl status xvfb.service --no-pager
 systemctl status obs-studio.service --no-pager
 systemctl status obs-web-studio.service --no-pager
+systemctl status nginx.service --no-pager
 
 echo "OBS Web Studio started successfully!"
 echo "Access the web interface at: http://$(hostname -I | awk '{print $1}')"
+echo "WebSocket available at: ws://$(hostname -I | awk '{print $1}'):4455"
 EOF
     
     chmod +x /usr/local/bin/obs-web-start
     
+    # Create stop script
+    cat > /usr/local/bin/obs-web-stop << 'EOF'
+#!/bin/bash
+
+# OBS Web Studio Stop Script
+echo "Stopping OBS Web Studio..."
+
+systemctl stop obs-web-studio.service
+systemctl stop obs-studio.service
+systemctl stop xvfb.service
+
+echo "OBS Web Studio stopped successfully!"
+EOF
+    
+    chmod +x /usr/local/bin/obs-web-stop
+    
     log "Startup script created at /usr/local/bin/obs-web-start"
+    log "Stop script created at /usr/local/bin/obs-web-stop"
 }
 
 # Main installation function
 main() {
     log "Starting OBS Web Studio installation for Orange Pi 5+"
-    log "This may take 30-60 minutes depending on your internet connection"
+    log "This may take 45-90 minutes depending on your internet connection"
     
     check_root
     check_hardware
     update_system
     install_nodejs
     create_user
+    clone_application
     install_obs_studio
     install_obs_websocket
-    setup_obs_web
+    setup_virtual_display
+    setup_obs_web_from_github
     configure_nginx
     setup_services
     configure_firewall
     setup_directories
     install_tools
     optimize_system
+    setup_autostart
     create_startup_script
     
     log "Installation completed successfully!"
@@ -667,19 +659,27 @@ main() {
     info "Installation directory: $OBS_WEB_DIR"
     info "Service user: $SERVICE_USER"
     info "Web interface: http://$(hostname -I | awk '{print $1}')"
-    info "WebSocket port: 4455"
+    info "WebSocket: ws://$(hostname -I | awk '{print $1}'):4455"
     info "Recordings directory: /home/$SERVICE_USER/recordings"
+    info "Profiles directory: /home/$SERVICE_USER/profiles"
+    info "Scene collections: /home/$SERVICE_USER/scene-collections"
     echo
     info "To start the services:"
     info "  sudo /usr/local/bin/obs-web-start"
     echo
+    info "To stop the services:"
+    info "  sudo /usr/local/bin/obs-web-stop"
+    echo
     info "To check service status:"
     info "  sudo systemctl status obs-web-studio"
     info "  sudo systemctl status obs-studio"
+    info "  sudo systemctl status xvfb"
     echo
     info "To view logs:"
     info "  sudo journalctl -u obs-web-studio -f"
     info "  sudo journalctl -u obs-studio -f"
+    echo
+    info "Services will start automatically on boot"
     echo
     warning "Please reboot the system to ensure all changes take effect:"
     warning "  sudo reboot"

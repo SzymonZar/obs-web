@@ -145,6 +145,33 @@ OBS.tts.on('error', (error) => {
 });`}
                 </pre>
               </div>
+
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-2">Zaawansowane funkcje TTS</h3>
+                <pre className="text-green-400 text-sm">
+{`// Kolejka TTS
+OBS.tts.queue('Pierwszy tekst');
+OBS.tts.queue('Drugi tekst');
+OBS.tts.clearQueue();
+
+// Kontrola odtwarzania
+OBS.tts.pause();
+OBS.tts.resume();
+OBS.tts.stop();
+
+// Filtry tekstu
+OBS.tts.addFilter('lol', 'haha');
+OBS.tts.removeFilter('lol');
+
+// Ustawienia głosu dla różnych języków
+OBS.tts.setVoiceForLanguage('pl', 'pl-PL-Standard-A');
+OBS.tts.setVoiceForLanguage('en', 'en-US-Standard-B');
+
+// Wykrywanie języka
+const lang = OBS.tts.detectLanguage('Hello world');
+OBS.tts.speak('Hello world', { autoLanguage: true });`}
+                </pre>
+              </div>
             </div>
           </div>
         );
@@ -224,6 +251,134 @@ OBS.tts.on('error', (error) => {
         OBS.sources.remove('Follow Alert');
       }, 5000);
     });
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-2">Advanced Scene Manager</h3>
+                <pre className="text-blue-400 text-sm overflow-x-auto">
+{`class AdvancedSceneManagerPlugin extends OBSPlugin {
+  constructor() {
+    super({
+      name: 'Advanced Scene Manager',
+      version: '1.0.0',
+      permissions: ['scenes', 'sources', 'audio']
+    });
+  }
+
+  onLoad() {
+    // Automatyczne przełączanie scen na podstawie czasu
+    this.scheduleSceneSwitch('Morning Scene', '08:00');
+    this.scheduleSceneSwitch('Evening Scene', '20:00');
+    
+    // Przełączanie na podstawie aktywności audio
+    OBS.audio.on('levelChange', (sourceId, level) => {
+      if (level > 0.8 && sourceId === 'microphone') {
+        OBS.scenes.setActive('Talk Scene');
+      }
+    });
+    
+    // Backup scen
+    this.createSceneBackup();
+  }
+  
+  scheduleSceneSwitch(sceneName, time) {
+    const [hours, minutes] = time.split(':').map(Number);
+    const now = new Date();
+    const scheduled = new Date(now.getFullYear(), now.getMonth(), now.getDate(), hours, minutes);
+    
+    if (scheduled < now) {
+      scheduled.setDate(scheduled.getDate() + 1);
+    }
+    
+    const timeout = scheduled.getTime() - now.getTime();
+    setTimeout(() => {
+      OBS.scenes.setActive(sceneName);
+      this.scheduleSceneSwitch(sceneName, time); // Reschedule for next day
+    }, timeout);
+  }
+  
+  createSceneBackup() {
+    const scenes = OBS.scenes.getAll();
+    const backup = {
+      timestamp: new Date(),
+      scenes: scenes.map(scene => ({
+        name: scene.name,
+        sources: scene.sources
+      }))
+    };
+    
+    OBS.storage.set('scene_backup', backup);
+  }
+}`}
+                </pre>
+              </div>
+
+              <div className="bg-gray-700 rounded-lg p-4">
+                <h3 className="text-white font-semibold mb-2">Multi-Language Chat Bot</h3>
+                <pre className="text-blue-400 text-sm overflow-x-auto">
+{`class MultiLanguageChatBotPlugin extends OBSPlugin {
+  constructor() {
+    super({
+      name: 'Multi-Language Chat Bot',
+      version: '1.0.0',
+      permissions: ['chat', 'tts', 'sources']
+    });
+    
+    this.commands = new Map();
+    this.setupCommands();
+  }
+  
+  setupCommands() {
+    // Polskie komendy
+    this.commands.set('!pogoda', this.getWeather);
+    this.commands.set('!czas', this.getTime);
+    this.commands.set('!muzyka', this.getCurrentSong);
+    
+    // English commands
+    this.commands.set('!weather', this.getWeather);
+    this.commands.set('!time', this.getTime);
+    this.commands.set('!song', this.getCurrentSong);
+  }
+  
+  onLoad() {
+    OBS.chat.on('message', (message) => {
+      const command = message.text.split(' ')[0].toLowerCase();
+      
+      if (this.commands.has(command)) {
+        const handler = this.commands.get(command);
+        const response = handler(message);
+        
+        // Wykryj język i użyj odpowiedniego głosu TTS
+        const language = this.detectLanguage(message.text);
+        OBS.tts.speak(response, { 
+          voice: this.getVoiceForLanguage(language),
+          autoLanguage: true 
+        });
+      }
+    });
+  }
+  
+  detectLanguage(text) {
+    // Prosta detekcja języka na podstawie słów kluczowych
+    const polishWords = ['jest', 'to', 'na', 'w', 'z', 'i', 'że', 'się'];
+    const englishWords = ['is', 'the', 'and', 'to', 'of', 'a', 'in', 'that'];
+    
+    const words = text.toLowerCase().split(' ');
+    const polishCount = words.filter(w => polishWords.includes(w)).length;
+    const englishCount = words.filter(w => englishWords.includes(w)).length;
+    
+    return polishCount > englishCount ? 'pl' : 'en';
+  }
+  
+  getVoiceForLanguage(language) {
+    const voices = {
+      'pl': 'pl-PL-Standard-A',
+      'en': 'en-US-Standard-B'
+    };
+    return voices[language] || voices['en'];
   }
 }`}
                 </pre>

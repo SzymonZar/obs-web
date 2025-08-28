@@ -1,21 +1,37 @@
 import React, { useState } from 'react';
-import { File, Settings, Palette, Puzzle, Mic, Monitor, Eye, EyeOff } from 'lucide-react';
+import { File, Settings, Palette, Puzzle, Mic, Monitor, Eye, EyeOff, Wifi, Users, Database, HelpCircle, Info } from 'lucide-react';
 import { FilesPopup } from './FilesPopup';
 import { PluginsPopup } from './PluginsPopup';
 import { ThemePopup } from './ThemePopup';
 import { MicrophonePopup } from './MicrophonePopup';
-import { DockPanel } from '../../types';
+import { WebSocketPopup } from './WebSocketPopup';
+import { SessionsPopup } from './SessionsPopup';
+import { ProfilesPopup } from './ProfilesPopup';
+import { HelpPopup } from './HelpPopup';
+import { DockPanel, Profile, SceneCollection, WebSocketConnection, SessionInfo } from '../../types';
 
 interface NavigationBarProps {
   onToggleDock: (dockId: string) => void;
   dockPanels: DockPanel[];
   onOpenSettings: () => void;
+  profiles: Profile[];
+  sceneCollections: SceneCollection[];
+  webSocketConnections: WebSocketConnection[];
+  activeSessions: SessionInfo[];
+  onProfileChange: (profileId: string) => void;
+  onSceneCollectionChange: (collectionId: string) => void;
 }
 
 export const NavigationBar: React.FC<NavigationBarProps> = ({
   onToggleDock,
   dockPanels,
-  onOpenSettings
+  onOpenSettings,
+  profiles,
+  sceneCollections,
+  webSocketConnections,
+  activeSessions,
+  onProfileChange,
+  onSceneCollectionChange
 }) => {
   const [activePopup, setActivePopup] = useState<string | null>(null);
 
@@ -146,9 +162,91 @@ export const NavigationBar: React.FC<NavigationBarProps> = ({
                 <ThemePopup onClose={() => setActivePopup(null)} />
               )}
             </div>
+
+            {/* WebSocket Menu */}
+            <div className="relative">
+              <button
+                onClick={() => togglePopup('websocket')}
+                className={`px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors ${
+                  activePopup === 'websocket' ? 'bg-gray-700 text-white' : ''
+                }`}
+              >
+                WebSocket
+              </button>
+              {activePopup === 'websocket' && (
+                <WebSocketPopup 
+                  connections={webSocketConnections}
+                  onClose={() => setActivePopup(null)} 
+                />
+              )}
+            </div>
+
+            {/* Profiles Menu */}
+            <div className="relative">
+              <button
+                onClick={() => togglePopup('profiles')}
+                className={`px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors ${
+                  activePopup === 'profiles' ? 'bg-gray-700 text-white' : ''
+                }`}
+              >
+                Profile
+              </button>
+              {activePopup === 'profiles' && (
+                <ProfilesPopup 
+                  profiles={profiles}
+                  sceneCollections={sceneCollections}
+                  onProfileChange={onProfileChange}
+                  onSceneCollectionChange={onSceneCollectionChange}
+                  onClose={() => setActivePopup(null)} 
+                />
+              )}
+            </div>
+
+            {/* Sessions Menu */}
+            <div className="relative">
+              <button
+                onClick={() => togglePopup('sessions')}
+                className={`px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors ${
+                  activePopup === 'sessions' ? 'bg-gray-700 text-white' : ''
+                }`}
+              >
+                Sesje ({activeSessions.length})
+              </button>
+              {activePopup === 'sessions' && (
+                <SessionsPopup 
+                  sessions={activeSessions}
+                  onClose={() => setActivePopup(null)} 
+                />
+              )}
+            </div>
+
+            {/* Help Menu */}
+            <div className="relative">
+              <button
+                onClick={() => togglePopup('help')}
+                className={`px-3 py-1.5 text-sm text-gray-300 hover:text-white hover:bg-gray-700 rounded transition-colors ${
+                  activePopup === 'help' ? 'bg-gray-700 text-white' : ''
+                }`}
+              >
+                Pomoc
+              </button>
+              {activePopup === 'help' && (
+                <HelpPopup onClose={() => setActivePopup(null)} />
+              )}
+            </div>
           </div>
 
           <div className="flex items-center space-x-2">
+            {/* Connection Status */}
+            <div className="flex items-center space-x-2 text-xs">
+              <div className={`w-2 h-2 rounded-full ${
+                webSocketConnections.some(c => c.connected) ? 'bg-green-400' : 'bg-red-400'
+              }`}></div>
+              <span className="text-gray-400">
+                {webSocketConnections.filter(c => c.connected).length}/{webSocketConnections.length} WS
+              </span>
+            </div>
+
             <button
               onClick={onOpenSettings}
               className="p-1.5 text-gray-400 hover:text-white hover:bg-gray-700 rounded transition-colors"
