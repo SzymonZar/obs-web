@@ -145,3 +145,86 @@ export interface SessionInfo {
   lastActivity: Date;
   permissions: string[];
 }
+export interface Plugin {
+  id: string;
+  name: string;
+  version: string;
+  author: string;
+  description: string;
+  enabled: boolean;
+  script: string;
+  permissions: string[];
+}
+
+export interface TTSSettings {
+  enabled: boolean;
+  voice: string;
+  rate: number;
+  pitch: number;
+  volume: number;
+}
+
+export interface DockPanel {
+  id: string;
+  name: string;
+  visible: boolean;
+  position: 'left' | 'right' | 'bottom' | 'floating';
+  size: { width: number; height: number };
+  minimized: boolean;
+  floating: boolean;
+  x?: number;
+  y?: number;
+}
+
+export interface Theme {
+  id: string;
+  name: string;
+  colors: {
+    primary: string;
+    secondary: string;
+    background: string;
+    surface: string;
+    accent: string;
+  };
+}
+
+export interface SceneCollection {
+  id: string;
+  name: string;
+  scenes: Scene[];
+  isActive: boolean;
+  created: Date;
+  modified: Date;
+}
+
+export interface Profile {
+  id: string;
+  name: string;
+  settings: {
+    output: Record<string, any>;
+    video: Record<string, any>;
+    audio: Record<string, any>;
+    stream: Record<string, any>;
+  };
+  isActive: boolean;
+  created: Date;
+  modified: Date;
+}
+
+export interface WebSocketConnection {
+  id: string;
+  name: string;
+  url: string;
+  connected: boolean;
+  lastPing: Date | null;
+  autoReconnect: boolean;
+}
+
+export interface SessionInfo {
+  id: string;
+  userAgent: string;
+  ipAddress: string;
+  connectedAt: Date;
+  lastActivity: Date;
+  permissions: string[];
+}

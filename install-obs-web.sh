@@ -2,7 +2,7 @@
 
 # OBS Web Studio Installation Script for Orange Pi 5+ Ubuntu Server ARM64
 # Author: OBS Web Studio Team
-# Version: 2.0.0
+# Version: 2.1.0
 # Compatible with: Ubuntu Server 22.04+ ARM64
 
 set -e
@@ -74,6 +74,26 @@ check_hardware() {
     fi
     
     log "Hardware check completed"
+}
+
+# Clone application from GitHub
+clone_application() {
+    log "Cloning OBS Web Studio from GitHub..."
+    
+    # Remove existing directory if present
+    rm -rf "$OBS_WEB_DIR"
+    
+    # Clone repository
+    git clone "$GITHUB_REPO" "$OBS_WEB_DIR"
+    cd "$OBS_WEB_DIR"
+    
+    # Install dependencies
+    npm install
+    
+    # Build application
+    npm run build
+    
+    log "Application cloned and built successfully"
 }
 
 # Clone application from GitHub
@@ -303,13 +323,13 @@ EOF
 }
 
 # Setup application from GitHub
-setup_obs_web_from_github() {
+setup_obs_web_application() {
     log "Setting up OBS Web Studio from GitHub repository..."
     
     # Set ownership
     chown -R "$SERVICE_USER:$SERVICE_USER" "$OBS_WEB_DIR"
     
-    log "OBS Web Studio application setup completed from GitHub"
+    log "OBS Web Studio application setup completed"
 }
 
 # Configure Nginx
@@ -560,6 +580,14 @@ setup_autostart() {
     systemctl enable obs-web-studio.service
     systemctl enable nginx.service
     
+    # Start services immediately
+    systemctl start xvfb.service
+    sleep 2
+    systemctl start obs-studio.service
+    sleep 3
+    systemctl start obs-web-studio.service
+    systemctl start nginx.service
+    
     # Create autostart script for desktop environments
     mkdir -p /etc/xdg/autostart
     cat > /etc/xdg/autostart/obs-web-studio.desktop << 'EOF'
@@ -643,7 +671,7 @@ main() {
     install_obs_studio
     install_obs_websocket
     setup_virtual_display
-    setup_obs_web_from_github
+    setup_obs_web_application
     configure_nginx
     setup_services
     configure_firewall
