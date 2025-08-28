@@ -116,94 +116,6 @@ function App() {
     }
   ]);
 
-  const [dockPanels, setDockPanels] = useState<DockPanel[]>([
-    { id: 'scenes', name: 'Sceny', visible: true, position: 'left', size: { width: 320, height: 400 }, minimized: false, floating: false },
-    { id: 'sources', name: 'Źródła', visible: true, position: 'right', size: { width: 320, height: 400 }, minimized: false, floating: false },
-    { id: 'mixer', name: 'Mikser Audio', visible: true, position: 'bottom', size: { width: 800, height: 200 }, minimized: false, floating: false },
-    { id: 'recordings', name: 'Nagrania', visible: true, position: 'bottom', size: { width: 400, height: 200 }, minimized: false, floating: false }
-  ]);
-
-  const [profiles] = useState<Profile[]>([
-    {
-      id: '1',
-      name: 'Streaming Profile',
-      settings: {
-        output: { bitrate: 3500, encoder: 'x264' },
-        video: { resolution: '1920x1080', fps: 30 },
-        audio: { sampleRate: 48000, channels: 'stereo' },
-        stream: { service: 'Twitch', key: '' }
-      },
-      isActive: true,
-      created: new Date('2024-01-01'),
-      modified: new Date()
-    },
-    {
-      id: '2',
-      name: 'Recording Profile',
-      settings: {
-        output: { bitrate: 8000, encoder: 'hardware' },
-        video: { resolution: '1920x1080', fps: 60 },
-        audio: { sampleRate: 48000, channels: 'stereo' },
-        stream: { service: 'Custom', key: '' }
-      },
-      isActive: false,
-      created: new Date('2024-01-02'),
-      modified: new Date()
-    }
-  ]);
-
-  const [sceneCollections] = useState<SceneCollection[]>([
-    {
-      id: '1',
-      name: 'Gaming Setup',
-      scenes: scenes,
-      isActive: true,
-      created: new Date('2024-01-01'),
-      modified: new Date()
-    },
-    {
-      id: '2',
-      name: 'Just Chatting',
-      scenes: [
-        { id: 'chat1', name: 'Webcam Only', isActive: false, sources: [] },
-        { id: 'chat2', name: 'Webcam + Chat', isActive: false, sources: [] }
-      ],
-      isActive: false,
-      created: new Date('2024-01-03'),
-      modified: new Date()
-    }
-  ]);
-
-  const [webSocketConnections] = useState<WebSocketConnection[]>([
-    {
-      id: '1',
-      name: 'Local OBS',
-      url: 'ws://localhost:4455',
-      connected: false,
-      lastPing: null,
-      autoReconnect: true
-    },
-    {
-      id: '2',
-      name: 'Remote OBS',
-      url: 'ws://192.168.1.100:4455',
-      connected: false,
-      lastPing: null,
-      autoReconnect: false
-    }
-  ]);
-
-  const [activeSessions] = useState<SessionInfo[]>([
-    {
-      id: '1',
-      userAgent: 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      ipAddress: '192.168.1.50',
-      connectedAt: new Date(Date.now() - 300000), // 5 minutes ago
-      lastActivity: new Date(Date.now() - 30000), // 30 seconds ago
-      permissions: ['view', 'control']
-    }
-  ]);
-
   const [streamStatus, setStreamStatus] = useState<StreamStatus>({
     isRecording: false,
     isStreaming: false,
@@ -489,22 +401,6 @@ function App() {
     // Scene collection change logic here
   };
 
-  const handleToggleDock = (dockId: string) => {
-    setDockPanels(prev => prev.map(dock =>
-      dock.id === dockId ? { ...dock, visible: !dock.visible } : dock
-    ));
-  };
-
-  const handleProfileChange = (profileId: string) => {
-    console.log('Changing profile to:', profileId);
-    // Profile change logic here
-  };
-
-  const handleSceneCollectionChange = (collectionId: string) => {
-    console.log('Changing scene collection to:', collectionId);
-    // Scene collection change logic here
-  };
-
   // Studio mode transition
   const handleTransition = () => {
     // Perform transition from preview to program
@@ -574,18 +470,6 @@ function App() {
         onSceneCollectionChange={handleSceneCollectionChange}
       />
       
-      <NavigationBar
-        onToggleDock={handleToggleDock}
-        dockPanels={dockPanels}
-        onOpenSettings={() => setIsSettingsOpen(true)}
-        profiles={profiles}
-        sceneCollections={sceneCollections}
-        webSocketConnections={webSocketConnections}
-        activeSessions={activeSessions}
-        onProfileChange={handleProfileChange}
-        onSceneCollectionChange={handleSceneCollectionChange}
-      />
-      
       <Header
         streamStatus={streamStatus}
         onStartRecording={handleStartRecording}
@@ -610,8 +494,6 @@ function App() {
               onSceneDuplicate={handleSceneDuplicate}
               onSceneRename={handleSceneRename}
             />
-          </div>
-        )}
           </div>
         )}
 
@@ -643,8 +525,6 @@ function App() {
             />
           </div>
         )}
-          </div>
-        )}
       </div>
 
       {dockPanels.find(d => d.id === 'mixer')?.visible && (
@@ -660,17 +540,7 @@ function App() {
           />
         </div>
       )}
-        </div>
-      )}
 
-      {dockPanels.find(d => d.id === 'recordings')?.visible && (
-        <RecordingsPanel
-          recordings={recordings}
-          onDownload={handleRecordingDownload}
-          onDelete={handleRecordingDelete}
-          onPlay={handleRecordingPlay}
-        />
-      )}
       {dockPanels.find(d => d.id === 'recordings')?.visible && (
         <RecordingsPanel
           recordings={recordings}
